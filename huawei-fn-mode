@@ -1,0 +1,45 @@
+#!/bin/bash
+# Forces the Huawei WMI Fn-lock register to the preferred default mode at
+# driver-bind time (before the desktop starts).
+#
+# Modes (WMI \GFRS/\SFRS, /sys/devices/platform/huawei-wmi/fn_lock_state):
+#   1 = "F-keys":  F1-F12 direct, hold Fn for volume/brightness/etc.  <-- preferred default
+#   0 = "FN":      top row sends volume/brightness/etc., hold Fn for F1-F12
+#
+# On this model (MateBook X Pro 2019, MACH-WX9) the physical Fn+Esc key is
+# EC-only and invisible to Linux (no input event, no WMI notify), and the
+# WMI readback only reflects values written via \SFRS - so this register
+# is the sole control, and forcing it here makes the preferred mode
+# permanent across reboots. The bar widget (click to toggle) can flip it
+# for the session; the next boot restores this default.
+#
+# Log: /tmp/huawei-fn-mode.log
+
+LOG=/tmp/huawei-fn-mode.log
+SYSFS=/sys/devices/platform/huawei-wmi/fn_lock_state
+PREFERRED=1
+
+log() { echo "$(date '+%F %T') $*" >> "$LOG" 2>/dev/null; }
+
+# The sysfs attribute may appear slightly after the platform-device uevent;
+# retry briefly.
+for i in $(seq 1 10); do
+  [[ -f "$SYSFS" ]] && break
+  sleep 0.5
+done
+
+if [[ ! -w "$SYSFS" ]]; then
+  log "skip: $SYSFS not present/writable (driver not loaded?)"
+  exit 0
+fi
+
+cur="$(<"$SYSFS")"
+if [[ "$cur" != "$PREFERRED" ]]; then
+  if echo "$PREFERRED" > "$SYSFS" 2>>"$LOG"; then
+    log "forced fn_lock_state $cur -> $PREFERRED (F-keys mode)"
+  else
+    log "FAILED to write $PREFERRED (was: $cur)"
+  fi
+else
+  log "already $PREFERRED, nothing to do"
+fi

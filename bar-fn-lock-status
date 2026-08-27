@@ -1,0 +1,32 @@
+#!/bin/bash
+# Reports the Huawei WMI Fn-lock state for the Omarchy bar.
+#
+# /sys/devices/platform/huawei-wmi/fn_lock_state is a LIVE query of the
+# firmware (ACPI method \GFRS each read):
+#   1 = F-keys mode:  F1-F12 direct, hold Fn for volume/brightness/etc.
+#   0 = FN mode:      top row sends volume/brightness/etc., hold Fn for F1-F12
+#
+# On this model (MateBook X Pro 2019, MACH-WX9) the physical Fn+Esc key is
+# EC-only and invisible to Linux - the WMI register is the sole control,
+# so this value is always authoritative. A udev rule
+# (/etc/udev/rules.d/99-huawei-fn-mode.rules) forces the F-keys mode (1)
+# at every boot; clicking this widget flips it for the session.
+#
+# Plain text only (no icons, to avoid clashing with other bar icons):
+#   "F"  in the accent color  = real F-keys
+#   "FN" in normal color      = multimedia/special keys on the top row
+
+state_file="/sys/devices/platform/huawei-wmi/fn_lock_state"
+
+if [[ ! -r "$state_file" ]]; then
+  printf '{"text":"?","tooltip":"huawei-wmi driver not found","class":""}\n'
+  exit 0
+fi
+
+state="$(<"$state_file")"
+
+if [[ "$state" == "1" ]]; then
+  printf '{"text":"F","tooltip":"F-keys: F1-F12 direct, Fn+key = volume/brightness/etc.\\nClick to switch to FN (multimedia keys)","class":"active"}\n'
+else
+  printf '{"text":"FN","tooltip":"Multimedia: top row = volume/brightness/etc., Fn+key = F1-F12\\nClick to switch to F-keys","class":""}\n'
+fi

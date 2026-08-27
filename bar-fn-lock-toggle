@@ -1,0 +1,11 @@
+#!/bin/bash
+# Toggles the Huawei WMI Fn-lock state (0 <-> 1) on this MateBook.
+#
+# Prefers the scoped, passwordless sudo entry
+# (/etc/sudoers.d/jmargeta-fn-toggle -> /usr/local/sbin/huawei-fn-toggle),
+# so clicking the bar widget needs no prompt; falls back to a polkit
+# password prompt if that entry is ever removed.
+
+if ! sudo -n /usr/local/sbin/huawei-fn-toggle; then
+  pkexec /usr/local/sbin/huawei-fn-toggle
+fi

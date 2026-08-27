@@ -1,0 +1,35 @@
+#!/bin/bash
+# Flips the Huawei WMI Fn-lock register (0 <-> 1).
+#
+#   1 = F-keys mode:  F1-F12 direct, hold Fn for volume/brightness/etc.
+#   0 = FN mode:      top row sends volume/brightness/etc., hold Fn for F1-F12
+#
+# Intended to run as root only, via either:
+#   - the scoped passwordless sudoers entry /etc/sudoers.d/jmargeta-fn-toggle
+#     (no arguments are accepted, the path is pinned)
+#   - pkexec (polkit password prompt) as a fallback
+#
+# It never accepts input and writes only the literal values 0 or 1 to the
+# register. Used by the Omarchy bar widget "fn-lock" and by
+# ~/.config/omarchy/bar/scripts/fn-lock-toggle.
+
+SYSFS=/sys/devices/platform/huawei-wmi/fn_lock_state
+
+if [[ ! -r "$SYSFS" || ! -w "$SYSFS" ]]; then
+  echo "huawei-wmi fn_lock_state unavailable (driver not loaded?)" >&2
+  exit 1
+fi
+
+cur="$(<"$SYSFS")"
+case "$cur" in
+  0) next=1 ;;
+  1) next=0 ;;
+  *) echo "unexpected fn_lock_state: $cur" >&2; exit 1 ;;
+esac
+
+if ! echo "$next" > "$SYSFS"; then
+  echo "failed to write fn_lock_state=$next" >&2
+  exit 1
+fi
+
+echo "fn_lock_state: $cur -> $next"
